@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive Navbar</title>
+    <link rel="stylesheet" href="Category.css">
+</head>
+
+<body>
+    <header>
+        <div class="header-content">
+            <div class="hamburger-button" id="menu-icon">&#9776;</div>
+            <h3>Welcome To Raj Cafe</h3>
+        </div>
+    </header>
+
+    <nav class="navbar">
+        <ul class="nav-links" id="nav-links">
+            <li><a href="/Dashboard">Dashboard</a></li>
+            <li class="active"><a href="/manage-category">Manage Category</a></li>
+            <li><a href="/manage-product">Manage Product</a></li>
+            <li><a href="/generate-bill">Generate Bill</a></li>
+            <li><a href="/view-bill">View Bill</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div id="notification" class="notification hidden">
+            <p id="notification-message"></p>
+        </div>
+
+        <div class="manage-category-row">
+            <h2>Manage Category</h2>
+            <button class="add-category-btn" id="addcategoryButton" type="button"
+                onclick="openModal('add')">+AddCategory</button>
+        </div>
+
+        <div class="filter-row">
+            <input type="text" class="filter-bar" placeholder="Filter" id="filterInput">
+        </div>
+
+        <div class="table-container" id="manage_Category-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="manage_Category-body"></tbody>
+            </table>
+        </div>
+
+        <div id="manageCategoryModal" class="modal">
+            <div class="modal-content">
+                <h1 id="modalTitle">Add Category Details</h1>
+                <form id="category-form">
+                    <label for="category-name">Category Name:</label>
+                    <input type="text" id="category-name" name="category-name" placeholder="Enter Category Name"
+                        required>
+                    <div class="button-container">
+                        <button id="cancel" type="button" onclick="closeModal()">Cancel</button>
+                        <button id="save" type="button" onclick="handleSubmit()" disabled>Save Details</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script>
+
+        document.getElementById('filterInput').oninput = () => {
+            const filterValue = document.getElementById('filterInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#manage_Category-body tr');
+            const targetColumns = [0]; // Columns to filter
+
+            rows.forEach(row => {
+                const cells = row.getElementsByTagName('td');
+                row.style.display = targetColumns.some(index => cells[index].textContent.toLowerCase().includes(filterValue)) ? '' : 'none';
+            });
+        };
+
+        const menuIcon = document.getElementById('menu-icon');
+        const navLinks = document.getElementById('nav-links');
+
+        menuIcon.onclick = () => {
+            navLinks.classList.toggle('active');
+            document.querySelector('main').style.marginTop = navLinks.classList.contains('active') ? '265px' : '0';
+        };
+
+        async function fetchData() {
+
+            const response = await fetch('/api/category');
+            const serverdata = await response.json();
+
+            const tableBody = document.getElementById('manage_Category-body');
+            tableBody.innerHTML = ''; // Clear existing rows
+
+            serverdata.forEach((item) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                        <td>${item['categoryName'] || ''}</td>
+                        <td>
+                            <button onclick='openModal("edit", ${JSON.stringify(item)})'>&#9998;</button>
+                            <button onclick="deleteClient('${item._id}')">🗑️</button>
+                        </td>
+                    `;
+                tableBody.appendChild(row);
+            });
+
+        }
+
+        let currentMode = ''; // Tracks the current mode (add, edit, or view)
+        let currentItemId = null; // Tracks the current item ID in edit mode
+
+        // Array defining all the fields and their IDs
+        const fieldsConfig = [
+            { key: 'categoryName', id: 'category-name' },
+        ];
+
+        // Open modal with appropriate mode (add, edit, or view)
+        function openModal(mode, data = null) {
+            currentMode = mode;
+            console.log(currentMode)
+            currentItemId = data?._id || null;
+            console.log(currentItemId)
+
+            const modal = document.getElementById('manageCategoryModal');
+            modal.style.display = 'block';
+            const actionButton = document.getElementById('save');
+
+            // Set button text and visibility based on mode
+            if (mode === 'add') {
+                actionButton.style.display = 'block';
+            } else if (mode === 'edit') {
+                actionButton.style.display = 'block';
+            }
+
+            // Apply field behavior dynamically
+            fieldsConfig.forEach(field => {
+                const fieldElement = document.getElementById(field.id);
+
+                if (mode === 'add') {
+                    fieldElement.value = '';
+                    fieldElement.removeAttribute('readonly');
+                } else if (mode === 'edit') {
+                    fieldElement.value = data[field.key] || '';
+                    fieldElement.removeAttribute('readonly');
+                }
+            });
+
+
+            const inputField = document.getElementById('category-name');
+            // Initially disable the save button
+            actionButton.disabled = true;
+
+            // Reset or set the input field value based on mode
+            if (mode === 'add') {
+                inputField.value = '';
+            } else if (mode === 'edit') {
+                inputField.value = data['categoryName'] || '';
+            }
+
+            // Add event listener to track changes in the input field
+            const initialValue = inputField.value.trim();
+            inputField.oninput = () => {
+                const currentValue = inputField.value.trim();
+
+                if (mode === 'add') {
+                    // Enable if the user types something
+                    actionButton.disabled = currentValue === '';
+                } else if (mode === 'edit') {
+                    // Enable only if the input is different from the original value
+                    actionButton.disabled = currentValue === '' || currentValue === initialValue;
+                }
+            };
+
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('manageCategoryModal').style.display = 'none';
+        }
+
+        // Handle form submission (add or edit)
+        async function handleSubmit() {
+            const formData = {};
+
+            // Dynamically build the formData object from the fieldsConfig array
+            fieldsConfig.forEach(field => {
+                const fieldValue = document.getElementById(field.id).value;
+                formData[field.key] = fieldValue;
+            });
+
+            if (currentMode === 'add') {
+                const res = await fetch('/api/add-category', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData),
+                });
+
+                const result = await res.json();
+                if (res.status === 200) {
+                    fetchData(); // Refresh the data
+                    showNotification(result.message, '#28a745'); // Green for success
+                    closeModal(); // Close the modal
+                } else if (res.status === 409) {
+                    showNotification(result.message, ' #f44336'); // Red for error
+                }
+
+            }
+            else if (currentMode === 'edit') {
+                formData['_id'] = currentItemId;// Adding the _id to the formData
+                const res = await fetch('/api/update-category', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData),
+                });
+
+                const result = await res.json();
+                if (res.status === 200) {
+                    fetchData(); // Refresh the data
+                    showNotification(result.message, '#28a745'); // Green for success
+                    closeModal(); // Close the modal
+                } else if (res.status === 409) {
+                    showNotification(result.message, '#f44336'); // Red for error
+                }
+
+            }
+        }
+
+        // Delete a category based on ID
+        async function deleteClient(id) {
+            const confirmation = confirm('Are you sure you want to delete this category? This action will also delete all products associated with it.');
+            if (confirmation) {
+                const res = await fetch(`/api/delete-category/${id}`, {
+                    method: 'DELETE',
+                });
+                const result = await res.json();
+                if (res.status === 200) {
+                    fetchData(); // Refresh the data after deletion
+                    showNotification(result.message, '#28a745'); // Success notification
+                }
+
+            }
+        }
+
+        const showNotification = (message, color = '#28a745') => {
+            const notification = document.getElementById('notification');
+            const notificationMessage = document.getElementById('notification-message');
+
+            notificationMessage.textContent = message;
+            notification.style.backgroundColor = color; // Set the background color dynamically
+
+            // Show the notification
+            notification.classList.remove('hidden');
+
+            // Hide the notification after 3 seconds
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000);
+        };
+
+
+        // Initial fetch of data when the page loads
+        fetchData();
+
+    </script>
+</body>
+
+</html>

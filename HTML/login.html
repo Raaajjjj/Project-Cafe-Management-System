@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Welcome To RaJ Tech</title>
+    <link rel="stylesheet" href="login.css">
+</head>
+
+<body>
+    <div class="login-container">
+        <h1>Welcome To RaJ Tech</h1>
+        <h2>Login to your account</h2>
+
+        <form>
+            <div class="input-group">
+                <label for="email">Enter your email</label>
+                <input type="email" id="email" name="email" placeholder="Email" required>
+                <p id="message1" style="color: red"></p>
+
+
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Password" required>
+                <p id="message2" style="color: red"></p>
+
+                <a href="/forgot" class="forgot-link">Forgot your password?</a>
+                <button type="button" id="button" class="login-btn">Log in</button>
+                <p id="message3" style="color: red"></p>
+                <p id="register">Don't have an account? <a href="/register">Create an account</a></p>
+            </div>
+        </form>
+
+    </div>
+    <script>
+        const displayMessage = (message, elementId) => {
+            const messageElement = document.getElementById(elementId);
+            messageElement.textContent = message;
+            setTimeout(() => messageElement.textContent = '', 2000); // Hide message after 2 seconds
+        };
+
+        document.getElementById('button').onclick = async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
+
+            if (response.ok) {
+                const { token } = await response.json();
+                console.log(`JWT received from server: ${token}`); // Debugging statement
+                localStorage.setItem('token', token); // Store the JWT
+                displayMessage('Login Successful!', 'message3');
+
+                // Ensure token is stored before redirection
+                console.log("Token successfully stored in localStorage: " + token); // Debugging statement
+                setTimeout(() => {
+                    window.location.href = '/Dashboard'; // Redirect only after token is set
+                }, 1000);
+            } else {
+                const errorMessage = await response.text();
+                if (errorMessage === 'wrong password') {
+                    displayMessage('Wrong password', 'message2');
+                } else if (errorMessage === 'unregistered_email') {
+                    displayMessage('Email not registered', 'message1');
+                }
+            }
+        };
+    </script>
+</body>
+
+</html>

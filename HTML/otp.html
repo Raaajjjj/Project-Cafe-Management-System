@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Verification</title>
+    <link rel="stylesheet" href="otp.css">
+</head>
+
+<body>
+    <div class="otp-container">
+        <h2>OTP Verification</h2>
+        <form id="otpForm">
+            <label for="otp">Enter OTP sent to your email:</label>
+            <input type="text" id="otp" name="otp" placeholder="Enter OTP" required>
+            <input type="hidden" name="email" id="email" value="">
+            <input type="hidden" name="type" id="type" value="">
+            <button type="button" id="verifyOtpButton">Verify OTP</button>
+        </form>
+        <p id="timerText">OTP expires in <span id="timer">30</span> seconds</p>
+
+        <p id="message" style="color: red;"></p> <!-- Message display -->
+
+        <form id="resendForm">
+            <input type="hidden" name="email" id="resendemail" value="">
+            <button type="button" id="resendOtpBtn" disabled>Resend OTP</button>
+        </form>
+    </div>
+
+    <script>
+        // Extract email from URL
+        const email = new URLSearchParams(window.location.search).get('email');
+        const type = new URLSearchParams(window.location.search).get('type');
+        document.getElementById('type').value = type;
+        document.getElementById('email').value = email;
+        document.getElementById('resendemail').value = email;
+
+        // Function to display messages to the user
+        const displayMessage = (message) => {
+            const messageElement = document.getElementById('message');
+            messageElement.textContent = message;
+            setTimeout(() => messageElement.textContent = '', 2000); // Hide message after 2 seconds
+        };
+
+        console.log('Type fetched from URL:', type);
+
+        // Attach event handler and define function in one line
+        document.getElementById('verifyOtpButton').onclick = async () => {
+            const otp = document.getElementById('otp').value; // Get OTP from input
+
+            console.log('Sending email client:', email); // Debug email number
+            console.log('Sending OTP client:', otp); // Debug OTP
+            console.log('Sending type client:', type); // Debug type before sending
+
+            // Fetch API call
+            const response = await fetch('/api/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, otp, type }),
+            });
+
+            const responseText = await response.text(); // Read the response text
+           
+            // Display messages based on server response
+            if (responseText === "Registration") {
+                displayMessage("Registration completed successfully! Redirecting To Login Page....");
+                setTimeout(() => window.location.href = '/', 2000); // Redirect after 2 seconds
+            }
+            else if (responseText === "Login") {
+                displayMessage("Login completed successfully! Redirecting To Main Page...");
+                setTimeout(() => window.location.href = `/Dashboard?email=${email}`, 2000); // Redirect after 2 seconds
+            }
+            else if (responseText === "expired") {
+                displayMessage("OTP has expired. Please request a new OTP.");
+            } else if (responseText === "password") {
+                displayMessage("Redirecting to Reset Password page....");
+                setTimeout(() => window.location.href = `forgot?email=${email}&verified=true`, 2000);
+            } else if (responseText === "invalid") {
+                displayMessage("Invalid OTP. Please try again.");
+            } else {
+                displayMessage("An unexpected error occurred. Please try again.");
+            }
+
+            document.getElementById('otp').value = ''; // Clear OTP field on failure
+        };
+
+
+        // Resend OTP function
+        document.getElementById('resendOtpBtn').onclick = async () => {
+    
+            const response = await fetch('/api/resend-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({email}),
+            });
+
+            const responseText = await response.text(); // Read the response text
+
+            // Display messages based on server response
+            if (responseText === "success") {
+                displayMessage(`A new OTP has been sent to ${email}.`);
+                setTimeout(() => window.location.reload(), 1000);
+            } else if (responseText === "error") {
+                displayMessage("An error occurred. Please try again.");
+            } else {
+                displayMessage("Unexpected response. Please try again.");
+            }
+
+        };
+
+        let countdown = 30;
+        const timer = document.getElementById('timer');
+        const resendBtn = document.getElementById('resendOtpBtn');
+
+        const interval = setInterval(() => {
+            countdown--;
+            timer.textContent = countdown;
+
+            if (countdown === 0) {
+                clearInterval(interval);
+                resendBtn.disabled = false;
+                document.getElementById('timerText').textContent = "OTP expired. Request new one.";
+            }
+        }, 1000);
+    </script>
+</body>
+
+</html>

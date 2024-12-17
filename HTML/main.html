@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logout Page</title>
+    <link rel="stylesheet" href="main.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Welcome, User!</h1>
+        <button class="logout-button" onclick="handleLogout()">Logout</button>
+    </div>
+
+    <script>
+        // Ensure the DOM is fully loaded before executing the script
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('token');
+
+            if (token) {
+                console.log("Token retrieved from localStorage:", token);
+
+                console.log("Sending token to the backend...");
+
+                fetch('/api/validate-token', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.message === 'Token received and valid') {
+                            console.log('Token validated. Access granted to main page.');
+                        } else {
+                            console.warn('Invalid token. Clearing localStorage...');
+                            localStorage.removeItem('token');  // Clear the token if it's invalid
+                            window.location.href = '/';        // Redirect to login page
+                        }
+                    })
+            } else {
+                console.warn("No token found in localStorage. User may not be logged in.");
+                window.location.href = '/';  // Redirect to login page if no token found
+            }
+        });
+
+        function handleLogout() {
+            localStorage.removeItem('token');  // Clear the token on logout
+            window.location.href = '/';        // Redirect to login page
+        }
+
+        window.addEventListener('beforeunload', () => {
+            localStorage.removeItem('token');
+        });
+
+
+
+    </script>
+</body>
+
+</html>
